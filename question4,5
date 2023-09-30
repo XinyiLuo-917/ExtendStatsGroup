@@ -1,0 +1,29 @@
+setwd("D:/Github/ExtendStatsGroup") ## comment out of submitted
+a <- scan("C:/Users/HP/Desktop/gutenberg.org_files_4300_4300-0.txt",what="character",skip=73,nlines=32858-73)
+a <- gsub("_(","",a,fixed=TRUE) ## remove "_("
+split_punct <- function(words, punctuation) {
+  punct_indices <- grep(punctuation, words)  # Find an index of words that contain punctuation
+  
+  updated_words <- vector("character", length(words) + length(punct_indices))  # Create a vector to store the updated word
+  
+  j <- 1  # Index for updated_words
+  
+  for (i in seq_along(words)) {
+    if (i %in% punct_indices) {  # Check whether the current index contains punctuation
+      split_word <- unlist(strsplit(words[i], punctuation))  # Split words at punctuation marks
+      updated_words[j] <- split_word[1]  # Add the first part of the split word to updated_words
+      updated_words[j + 1] <- punctuation  # Add punctuation as a separate entry
+      j <- j + 2
+    } else {
+      updated_words[j] <- words[i]  # Add the original words to updated_words
+      j <- j + 1
+    }
+  }
+  
+  return(updated_words[1:(j-1)])  # Returns the updated word vector
+}
+
+words <- a
+punctuation_mark <- ","
+updated_words <- split_punct(words, punctuation_mark)
+print(updated_words)
