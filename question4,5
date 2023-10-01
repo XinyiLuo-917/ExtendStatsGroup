@@ -28,3 +28,41 @@ words <- a
 punctuation_mark <- c(",", ".", ";", "!", ":", "?")
 updated_words <- split_punct(words, punctuation_mark)
 print(updated_words)
+
+# Convert the text to lower case and find unique words
+unique_words <- unique(tolower(a))
+
+print(unique_words)
+
+# Use the match function to find the corresponding index
+indices <- match(a, unique_words)
+
+print(indices)
+
+# The tabulate function is used to calculate the frequency
+word_counts <- tabulate(indices)
+
+print(word_counts)
+
+# Count the frequency of each word
+word_counts <- tabulate(match(tolower(a), unique_words))
+
+# Set target quantity
+target_count <- 1000
+
+# Search threshold
+threshold <- 1
+while (length(unique_words[word_counts >= threshold]) > target_count) {
+  threshold <- threshold + 1
+}
+
+# Filter common words by threshold
+common_words <- unique_words[word_counts >= threshold]
+
+print(common_words)
+
+# Extract m most common words
+m <- 1000
+b <- head(common_words, m)
+
+print(b)
