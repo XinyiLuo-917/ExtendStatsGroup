@@ -1,6 +1,7 @@
 setwd("D:/Github/ExtendStatsGroup") ## comment out of submitted
 a <- scan("C:/Users/HP/Desktop/gutenberg.org_files_4300_4300-0.txt",what="character",skip=73,nlines=32858-73)
 a <- gsub("_(","",a,fixed=TRUE) ## remove "_("
+
 split_punct <- function(words, punctuation) {
   punct_indices <- grep(punctuation, words)  # Find an index of words that contain punctuation
   
@@ -24,6 +25,6 @@ split_punct <- function(words, punctuation) {
 }
 
 words <- a
-punctuation_mark <- ","
+punctuation_mark <- c(",", ".", ";", "!", ":", "?")
 updated_words <- split_punct(words, punctuation_mark)
 print(updated_words)
