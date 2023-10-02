@@ -29,21 +29,25 @@ updated_words <- split_punct(words)
 print(updated_words)
 
 #Step 6
+#(a)
 # Convert the text to lower case and find unique words
 unique_words <- unique(tolower(updated_words))
 
 print(unique_words)
 
+#(b)
 # Use the match function to find the corresponding index
 indices <- match(updated_words, unique_words)
 
 print(indices)
 
+#(c)
 # The tabulate function is used to calculate the frequency
 word_counts <- tabulate(indices)
 
 print(word_counts)
 
+#(d)
 # Count the frequency of each word
 word_counts <- tabulate(match(tolower(updated_words), unique_words))
 
@@ -61,6 +65,7 @@ common_words <- unique_words[word_counts >= threshold]
 
 print(common_words)
 
+#(e)
 # Extract m most common words
 m <- 1000
 b <- head(common_words, m)
@@ -68,3 +73,33 @@ b <- head(common_words, m)
 print(b)
 
 #Step 7
+#(a)
+# Create a matching vector
+match_vector <- match(tolower(updated_words), common_words)
+
+print(match_vector)
+
+#(b)
+# Matrix column binding
+matrix <- cbind(match_vector[-length(match_vector)], match_vector[-1], match_vector[-2])
+
+print(matrix)
+
+#(c)
+# Identify common word triples and remove triples that contain NA
+common_triplets <- matrix[rowSums(is.na(matrix)) == 0, ]
+
+print(common_triplets)
+
+#(d)
+# Matrix column binding
+matrix_d <- cbind(match_vector[-length(match_vector)], match_vector[-1])
+
+# Identify common word triples and remove triples that contain NA
+common_pairs <- matrix[rowSums(is.na(matrix)) == 0, ]
+
+print(common_pairs)
+
+# Step 8
+#(a)
+
