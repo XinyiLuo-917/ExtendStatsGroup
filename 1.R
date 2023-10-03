@@ -3,24 +3,22 @@ a <- scan("C:/Users/HP/Desktop/gutenberg.org_files_4300_4300-0.txt",what="charac
 a <- gsub("_(","",a,fixed=TRUE) ## remove "_("
 
 #Step 4
-split_punct <- function(words, punctuation) {
-  new_words <- character()
-  #Define the regular expression for punctuation
-  punctuation_regex <- "[[:punct:]]+"
-  #Look for punctuation in each word
-  for (word in words) {
-    index <- gregexpr(punctuation_regex, word)[[1]]
-    #In case of punctuation
-    if (length(index) > 0) {
-      #Split the word and add punctuation as a new entry to the new vector
-      split_word <- unlist(strsplit(word, punctuation_regex))
-      punctuations <- regmatches(word, gregexpr(punctuation_regex, word))[[1]]
-      new_words <- c(new_words, split_word, punctuations)
+split_punct <- function(words) {
+  punct_indices <- grep("[[:punct:]]", words, perl = TRUE)  # Find an index of words that contain punctuation
+  
+  updated_words <- lapply(seq_along(words), function(i) {
+    if (i %in% punct_indices) {  # If the word contains punctuation
+      word <- words[i]
+      punctuations <- regmatches(word, gregexpr("[[:punct:]]", word, perl = TRUE))[[1]]  # Extract punctuation characters
+      split_word <- unlist(strsplit(word, punctuations, fixed = TRUE))  # Split words using punctuation characters
+      
+      c(split_word, punctuations)  # Merge the split word and punctuation characters
     } else {
-      new_words <- c(new_words, word) #If there is no punctuation, the word is added to the new vector
+      words[i]  # If the word does not contain punctuation, it remains the same
     }
-  }
-  return(new_words)
+  })
+  
+  return(unlist(updated_words))  # Returns the updated word as a single vector
 }
 
 #Step 5
