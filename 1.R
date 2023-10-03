@@ -102,4 +102,33 @@ print(common_pairs)
 
 # Step 8
 #(a)
+# Set the initial word index pair
+k <- c(1, 2)
 
+# The simulation generates a 50-word paragraph of text
+for (i in 1:50) {
+  # Generates an index for the next word based on the current word index pair
+  next_word_index <- sample(length(b), size = 1, prob = model$probabilities[k[1], k[2], , drop = TRUE])
+  
+  # Print the corresponding word
+  cat(b[next_word_index], " ")
+  
+  # Update the word index pair for the next iteration
+  k <- c(k[2], next_word_index)
+}
+
+#(b)
+# Extraction the submatrix
+sub_matrix <- T[T[, 1] == k[i] & T[, 2] == k[j], ]
+
+# Print the submatrix
+print(sub_matrix)
+
+#(c)
+# Select an element at random from the third column of the extracted submatrix
+random_element <- sample(sub_matrix[, 3], size = 1)
+
+# Prints randomly selected elements
+print(random_element)
+
+#Step 9
