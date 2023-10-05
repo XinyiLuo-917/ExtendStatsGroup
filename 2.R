@@ -6,6 +6,9 @@ a <- gsub("—","",a,fixed=TRUE) ## remove "—"
 a <- gsub("_","",a,fixed=TRUE) ## remove "_"
 a <- gsub(")","",a,fixed=TRUE) ## remove ")"
 a <- gsub("(","",a,fixed=TRUE) ## remove "("
+a <- gsub("-","",a,fixed=TRUE) ## remove "-"
+a <- gsub("/","",a,fixed=TRUE) ## remove "/"
+
 #Step 4
 split_punct <- function(words) {
   punct_indices <- grep("[[:punct:]]", words, perl = TRUE)  # Find an index of words that contain punctuation
@@ -77,7 +80,7 @@ print(threshold_number)
 b <- common_words
 print(b)
 
-#step7
+#Step 7
 # (a)
 # Use match to create a vector indicating the position of each word in the common word vector b
 match_vector <- match(tolower(updated_words), b)
@@ -87,8 +90,8 @@ match_vector <- match(tolower(updated_words), b)
 n <- length(match_vector)
 # Create a three-column matrix that stores indexes for common word triples
 triplets_matrix <- cbind(match_vector[1:(n-2)], match_vector[2:(n-1)], match_vector[3:n])
-# triplets_matrix <- cbind(match_vector[-3], match_vector[-2], match_vector[-3])
 T<-triplets_matrix
+print(T)
 
 # (c)
 # Identify common word triples and delete triples containing NA
@@ -96,7 +99,8 @@ common_triplets <- triplets_matrix[rowSums(is.na(triplets_matrix)) == 0, ]
 
 # (d)
 # Use the same idea to generate a two-column matrix P of common word pairs
-pairs_matrix <- cbind(match_vector[-2], match_vector[-1])
+pairs_matrix <- cbind(match_vector[1:(n-1)], match_vector[2:n])
+#pairs_matrix <- cbind(match_vector[-2], match_vector[-1])
 P<-pairs_matrix 
 # Print result
 print(common_triplets)
@@ -124,30 +128,60 @@ for (i in 1:paragraph_length) {
 cat(generated_text, sep = " ")
 
 #Step 9
-common_words <- c()
-word_probabilities <- runif(50,0,1)  # Fill in the corresponding word probabilities
-# The simulation generates a 50-word paragraph of text
+# Initializes a vector for storing probabilistically drawn words
+common_words_from_b <- character(0)
+
+# Make sure the length of word_probabilities matches the length of b配
+word_probabilities <- runif(length(b), 0, 1)
+
+# Generate a 50-word paragraph
 for (i in 1:50) {
-  # Draw the next word according to the word probability
-  next_word_index <- sample(1:50, size = 1, prob = word_probabilities)
-  common_words <- c(common_words,generated_text[next_word_index])
-  # Print the next word
-  cat(common_words[next_word_index], " ")
+  # The next word is drawn from b according to its probability
+  next_word_index <- sample(length(b), size = 1, prob = word_probabilities)
+  
+  # Get the next word (from b)
+  next_word <- b[next_word_index]
+  
+  # Add words to the generated text
+  common_words_from_b <- c(common_words_from_b, next_word)
 }
-common_words == generated_text
+
+# 50 words drawn from b according to probability
+cat(common_words_from_b, sep = " ")
+
+
 
 #Step 10
-# Store common words with uppercase letters in another vector
-capitalized_common_words <- common_words
-capitalized_common_words[grep("^[A-Z]", common_words)] <- toupper(capitalized_common_words[grep("^[A-Z]", common_words)])
+# Find unique words
+unique_words <- unique(updated_words)
 
-# The simulation generates a 50-word paragraph of text
+# Use the match function to find the corresponding index
+indices <- match(updated_words, unique_words)
+
+# The tabulate function is used to calculate the frequency
+word_counts <- tabulate(indices)
+
+print(word_counts)
+
+# Sort word frequencies and get the sorted index
+sorted_indices <- order(word_counts, decreasing = TRUE)
+
+# Extract the top 1000 words with the highest frequency
+m <- 1000
+common_words <- unique_words[sorted_indices[1:m]]
+c <- common_words
+print(c)
+
+# Generating random probability
+word_probabilities <- runif(length(c), 0, 1)
+
+# Generate a 50-word paragraph
 for (i in 1:50) {
-  # Draw the next word according to the word probability
-  next_word_index <- sample(length(common_words), size = 1, prob = word_probabilities)
+  # The next word is randomly selected based on its probability of occurrence
+  next_word_index <- sample(length(c), size = 1, prob = word_probabilities)
   
-  # Get the next word (capitalized)
-  next_word <- capitalized_common_words[next_word_index]
+  #Get the next word
+  next_word <- c[next_word_index]
   
   # Print the next word
   cat(next_word, " ")
