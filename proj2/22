@@ -8,61 +8,67 @@ qsim <- function(mf, mb, a.rate, trb, trf, tmb, tmf, maxb) {
   fcount <- 0
   bcount <- 0
   
-  farrival <- rexp(1, a.rate)  
+  farrival <- (runif(1) < a.rate)
   fdeparture <- Inf
   bdeparture <- Inf
-  
-  for (t in 1:(2*60*60)) {       # run simulation
-    
-    if (t >= farrival) {    # check for new arrivals at the French station
-      fcount <- fcount + 1
-      fqueue[which.min(fqueue)] <- fcount
-      farrival <- t + rexp(1, a.rate)
-    }
-    
-    if (t >= fdeparture) {          # check for departures from the French station
-      if (min(bqueue) == 0) {       # move a vehicle from the French to the British station
-        bcount <- bcount + 1
-        bqueue[which.min(bqueue)] <- bcount
-      } else {
+
+  for (t in 1:(2*60*60)) {       #run simulation
+
+    if (t >= farrival && t < (2*60*60 - 30*60)) {    #check for new arrivals at the French station
+      if (fcount < mf && sum(bqueue > 0) < maxb) {
+        fcount <- fcount + 1
         fqueue[which.min(fqueue)] <- fcount
       }
-      
-      fdeparture <- t + runif(1, tmf, tmf + trf)      # next departure time from the French station
-      Nb[t] <- sum(bqueue > 0)      # update the number of vehicles at the British station
+      farrival <- t + (runif(1) < a.rate)
     }
     
-    if (t >= bdeparture) {    # departures from the British station
+    if (t >= bdeparture || is.infinite(bdeparture)) {    #departures from the British station
       bqueue[which.min(bqueue)] <- 0
-      
-      bdeparture <- t + runif(1, tmb, tmb + trb)      # the next departure time from the British station
+      bdeparture <- t + runif(1, tmb, tmb + trb)      #the next departure time from the British station
+      Nf[t] <- sum(fqueue > 0)
     }
     
+    if (t >= fdeparture || is.infinite(fdeparture)) {          #check for departures from the French station
+      if (min(bqueue) == 0) {       # move a vehicle from the French to the British station
+        if (bcount < mb) {
+          bcount <- bcount + 1
+          bqueue[which.min(bqueue)] <- bcount
+        }
+      } else {
+        if (fcount < mf && sum(bqueue > 0) < maxb) {
+          fcount <- fcount + 1
+          fqueue[which.min(fqueue)] <- fcount
+        }
+      }
+      if (fcount > 0) {
+        fdeparture <- t + runif(1, tmf, tmf + trf)      #next departure time from the French station
+      }
+      Nb[t] <- sum(bqueue > 0)      #update the number of vehicles at the British station
+    }
     Nf[t] <- sum(fqueue > 0)
-    Nb[t] <- sum(bqueue > 0)    # the queue lengths at the French and British stations
-    
+    Nb[t] <- sum(bqueue > 0)    #the queue lengths at the French and British stations
     Eq[t] <- sum(fqueue[1:min(fcount, length(fqueue))] * (t - (1:min(fcount, length(fqueue))))) / min(fcount, length(fqueue))    # the average expected waiting time at the front of the French queue
   }
   
   return(list(nf = Nf, nb = Nb, eq = Eq))
 }
 
-sim_def <- qsim(mf = 5, mb = 5, a.rate = 0.1, trb = 40, trf = 40, tmb = 30, tmf = 30, maxb = 20) # simulation with default parameters
+sim_def <- qsim(mf = 5, mb = 5, a.rate = 0.1, trb = 40, trf = 40, tmb = 30, tmf = 30, maxb = 20) #simulation with default parameters
 
-sim40 <- qsim(mf = 5, mb = 40, a.rate = 0.1, trb = 40, trf = 40, tmb = 30, tmf = 30, maxb = 20) # simulation with mb set to 40
+sim40 <- qsim(mf = 5, mb = 40, a.rate = 0.1, trb = 40, trf = 40, tmb = 30, tmf = 30, maxb = 20) #simulation with mb set to 40
 
 par(mfrow = c(2, 2))
 
 plot(sim_def$nf, type = "l", xlab = "Time (seconds)", ylab = "French Queue Length", main = "French Queue Length")
 lines(sim_def$nb, col = "blue")
-legend("topright", c("French", "British"), col = c("black", "blue"), lty = 1)# Plot of French and British queue lengths over time (default parameters)
+legend("topright", c("French", "British"), col = c("black", "blue"), lty = 1)  #Plot of French and British queue lengths over time (default parameters)
 
-plot(sim_def$eq, type = "l", xlab = "Time (seconds)", ylab = "Expected Queuing Time", main = "Expected Queuing Time")# Plot of expected queuing time over time (default parameters)
+plot(sim_def$eq, type = "l", xlab = "Time (seconds)", ylab = "Expected Queuing Time", main = "Expected Queuing Time")   #Plot of expected queuing time over time (default parameters)
 
-plot(sim40$nf, type = "l", xlab = "Time (seconds)", ylab = "French Queue Length", main = "French Queue Length (mb = 40)")# Plot of French and British queue lengths over time (mb = 40 seconds)
+plot(sim40$nf, type = "l", xlab = "Time (seconds)", ylab = "French Queue Length", main = "French Queue Length (mb = 40)")   #Plot of French and British queue lengths over time (mb = 40 seconds)
 lines(sim40$nb, col = "blue")
 
-run <- function() {           # Function to run simulation and check if at least one car misses the ferry
+run <- function() {           #run simulation and check if at least one car misses the ferry
   result <- qsim(mf = 5, mb = 5, a.rate = 0.1, trb = 40, trf = 40, tmb = 30, tmf = 30, maxb = 20)
   return(max(result$nf[length(result$nf)], result$nb[length(result$nb)]) > 0)
 }
@@ -71,6 +77,6 @@ num <- 100
 
 results <- replicate(num, run())
 
-probability <- sum(results) / num # calculate probability of at least one car missing the ferry
+probability <- sum(results) / num #calculate probability of at least one car missing the ferry
 
-cat("Probability of at least one car missing the ferry:", probability, "\n") # result
+cat("Probability of at least one car missing the ferry:", probability, "\n") #result
