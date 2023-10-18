@@ -1,0 +1,226 @@
+#### 1. qsim函数
+qsim <- function(mf, mb, a.rate, trb, trf, tmb, tmf, maxb) {
+  Nf <- rep(0, 2*60*60)  #initialization
+  Nb <- rep(0, 2*60*60)
+  Nf1 <- rep(0, 2*60*60)  #initialization
+  Nb1 <- rep(0, 2*60*60)
+  Eq <- rep(0, 2*60*60)
+  b <- c()#看看英国队伍中是否有超过20个的,TRUE表示不超过，符合要求
+  
+  fqueue <- rep(0, mf) #法国队列
+  bqueue <- rep(0, mb) #英国队列
+  fcount <- 0 #法国排队车辆总数
+  bcount <- 0 #英国排队车辆总数
+  
+  
+  arrival <- c(rpois(1.5*60*60,a.rate),rep(0, 0.5*60*60))#size参数设置为1，每个随机数代表的是单次试验的成功与否,随机数的取值只能是0或1。最后30分钟无车辆抵达。
+  #farrival<-which(arrival==1)#法国站汽车到达的时间
+  
+  fdeparture <- rep(0, mf)  #法国队列第一排需要的处理时间
+  bdeparture <- rep(0, mb)  #英国队列第一排需要的处理时间
+  maxf <- round(2*60*60*a.rate/1.5)
+  fprocess <- matrix(rep(0,mf*maxf),nrow=mf,ncol=maxf) #法国处理时间队列
+  bprocess <- matrix(rep(0,mb*maxb),nrow=mb,ncol=maxb) #英国处理时间队列
+  
+  for(t in 1:(1.5*60*60)){
+    if (arrival[t]>=1){ #one car come in
+      ##二项分布
+      #fcount <- fcount + 1
+      #fq_num <- which.min(fqueue) #which French queue 
+      #ordf <- fqueue[fq_num] <- fqueue[fq_num] + 1 #order of that French queue,且最短队列车辆+1
+      #fprocess[fq_num,ordf] <- runif(1, tmf, tmf + trf) #process time
+      #if (fqueue[fq_num]==1) {fdeparture[fq_num] <- fprocess[fq_num,1] + fdeparture[fq_num]} ##有问题
+      
+      ## Poisson
+      fcount <- fcount + arrival[t]
+      fq_num <- order(fqueue)[1:arrival[t]] #which French queue 
+      ordf <- fqueue[fq_num] <- fqueue[fq_num] + 1 #order of that French queue,且最短队列车辆+1
+      for (j in 1:arrival[t]) {
+        fprocess[fq_num[j],ordf[j]] <- runif(1, tmf, tmf + trf) #process time
+      }
+      fdeparture[(fqueue[fq_num]==1)] <- fprocess[(fqueue[fq_num]==1),1] + fdeparture[(fqueue[fq_num]==1)]   ##更新处理需要时间
+    }
+    
+    fdeparture[fqueue==0] <- bdeparture[bqueue==0] <- t + 0.0001
+    
+    if (all(fdeparture > t)) {
+      if(any(bdeparture <= t)){  ##车辆离开英国队列
+        bcount <- bcount - length(bdeparture[bdeparture <= t])
+        bqueue[bdeparture <= t] <- bqueue[bdeparture <= t] - 1 
+        bprocess[(bdeparture <= t),-maxb] <- bprocess[(bdeparture <= t),-1] #bprocess和fprocess一样是随机的
+        bprocess[(bdeparture <= t),maxb] <- 0
+        bdeparture[bdeparture <= t] <- bprocess[bdeparture <= t,1] + bdeparture[bdeparture <= t] ##更新处理需要时间
+      }
+    } else {
+      if(all(bqueue >=20 )){
+        if(any(bdeparture <= t)){  ##车辆离开英国队列
+          bcount <- bcount - length(bdeparture[bdeparture <= t])
+          bqueue[bdeparture <= t] <- bqueue[bdeparture <= t] - 1 
+          bprocess[(bdeparture <= t),-maxb] <- bprocess[(bdeparture <= t),-1]
+          bprocess[(bdeparture <= t),maxb] <- 0
+          bdeparture[bdeparture <= t] <- bprocess[bdeparture <= t,1] + bdeparture[bdeparture <= t] ##更新处理需要时间
+        }
+        #46-63 表示法国站未处理完或者英国站满员
+      } else {  ##车辆满足离开法国转入英国的条件
+        nbi <- mb*maxb - bcount ##英国队列最多可进入车辆数
+        nfi <- min(length(fdeparture[fdeparture <= t]),nbi) ##法国队列最多可离开车辆
+        fcount <- fcount - nfi
+        ord1 <- order(fdeparture[fdeparture <= t])[1:nfi]#当英国可进入车辆数<=法国需要转出的车辆数时，遵循先到先得原则，排序并找出等待时间前几的车辆
+        fqueue[fdeparture <= t][ord1] <- fqueue[fdeparture <= t][ord1] - 1 #对应坐标位置-1，标志对应位置出车
+        if (nfi > 1){
+          fprocess[(fdeparture <= t),-maxf][ord1,] <- fprocess[(fdeparture <= t),-1][ord1,]
+          fprocess[(fdeparture <= t),maxf][ord1] <- 0
+        } else {
+          fprocess[(fdeparture <= t),-maxf][ord1] <- fprocess[(fdeparture <= t),-1][ord1]
+          fprocess[(fdeparture <= t),maxf][ord1] <- 0
+        }
+        fdeparture[fdeparture <= t][ord1] <- (fprocess[(fdeparture <= t),1][ord1]  + fdeparture[fdeparture <= t][ord1]) ##更新处理需要时间
+        
+        
+        ##车辆进入英国队列
+        if(all(bdeparture>t)){ #英国在法国车辆抵达时未处理完前车（即英国站有车进入但无车离开）
+          bcount <- bcount + nfi
+          bq_num <- order(bqueue)[1:nfi] #which British queue 
+          ordb <- bqueue[bq_num] <- bqueue[bq_num] + 1 #order of that British queue,且最短队列车辆+1
+          for (j in 1:nfi) {
+            bprocess[bq_num[j],ordb[j]] <- runif(1, tmb, tmb + trb) #process time
+          }
+          bdeparture[(bqueue[bq_num]==1)] <- bprocess[(bqueue[bq_num]==1),1] + bdeparture[(bqueue[bq_num]==1)]  ##更新处理需要时间
+        } else {
+          #（英国已经处理完前车，即英国站有车进入且有车离开）
+          ##车辆进入英国队列
+          bcount <- bcount + nfi
+          bq_num <- order(bqueue)[1:nfi] #which British queue 
+          ordb <- bqueue[bq_num] <- bqueue[bq_num] + 1 #order of that British queue,且最短队列车辆+1
+          for (j in 1:nfi) {
+            bprocess[bq_num[j],ordb[j]] <- runif(1, tmb, tmb + trb) #process time
+          }
+          bdeparture[(bqueue[bq_num]==1)] <- bprocess[(bqueue[bq_num]==1),1] + bdeparture[(bqueue[bq_num]==1)]   ##更新处理需要时间
+          
+          ##车辆离开英国队列
+          bcount <- bcount - length(bdeparture[bdeparture <= t])
+          bqueue[bdeparture <= t] <- bqueue[bdeparture <= t] - 1 
+          bprocess[(bdeparture <= t),-maxb] <- bprocess[(bdeparture <= t),-1]
+          bprocess[(bdeparture <= t),maxb] <- 0
+          bdeparture[bdeparture <= t] <- bprocess[bdeparture <= t,1] + bdeparture[bdeparture <= t] ##更新处理需要时间
+        }
+      }
+    }
+    
+    Nf[t] <- sum(fqueue)/mf
+    Nb[t] <- sum(bqueue)/mb
+    Nf1[t] <- fcount/mf
+    Nb1[t] <- bcount/mb
+    Eq[t] <- Nf[t]*mean(tmf,tmf+trf)  + Nb[t]*mean(tmb,tmb+trb) 
+    b[t]<-(bqueue[which.max(bqueue)]<=20)
+  }
+  
+  for(t in (1.5*60*60+1):(2*60*60)){
+    
+    fdeparture[fqueue==0] <- bdeparture[bqueue==0] <- t + 0.0001
+    
+    if (all(fdeparture > t)) {
+      if(any(bdeparture <= t)){  ##车辆离开英国队列
+        bcount <- bcount - length(bdeparture[bdeparture <= t])
+        bqueue[bdeparture <= t] <- bqueue[bdeparture <= t] - 1 
+        bprocess[(bdeparture <= t),-maxb] <- bprocess[(bdeparture <= t),-1]
+        bprocess[(bdeparture <= t),maxb] <- 0
+        bdeparture[bdeparture <= t] <- bprocess[bdeparture <= t,1] + bdeparture[bdeparture <= t] ##更新处理需要时间
+      }
+    } else {
+      if(all(bqueue >=20 )){
+        if(any(bdeparture <= t)){  ##车辆离开英国队列
+          bcount <- bcount - length(bdeparture[bdeparture <= t])
+          bqueue[bdeparture <= t] <- bqueue[bdeparture <= t] - 1 
+          bprocess[(bdeparture <= t),-maxb] <- bprocess[(bdeparture <= t),-1]
+          bprocess[(bdeparture <= t),maxb] <- 0
+          bdeparture[bdeparture <= t] <- bprocess[bdeparture <= t,1] + bdeparture[bdeparture <= t] ##更新处理需要时间
+        }
+      } else {  ##车辆离开法国对立
+        nbi <- mb*maxb - bcount ##英国队列最多可进入车辆数
+        nfi <- min(length(fdeparture[fdeparture <= t]),nbi) ##法国队列最多可离开车辆
+        fcount <- fcount - nfi
+        ord1 <- order(fdeparture[fdeparture <= t])[1:nfi]
+        fqueue[fdeparture <= t][ord1] <- fqueue[fdeparture <= t][ord1] - 1 
+        if (nfi > 1){
+          fprocess[(fdeparture <= t),-maxf][ord1,] <- fprocess[(fdeparture <= t),-1][ord1,]
+          fprocess[(fdeparture <= t),maxf][ord1] <- 0
+        } else {
+          fprocess[(fdeparture <= t),-maxf][ord1] <- fprocess[(fdeparture <= t),-1][ord1]
+          fprocess[(fdeparture <= t),maxf][ord1] <- 0
+        }
+        fdeparture[fdeparture <= t][ord1] <- (fprocess[(fdeparture <= t),1][ord1]  + fdeparture[fdeparture <= t][ord1]) ##更新处理需要时间
+        
+        if(all(bdeparture>t)){ ##车辆进入英国队列
+          bcount <- bcount + nfi
+          bq_num <- order(bqueue)[1:nfi] #which British queue 
+          ordb <- bqueue[bq_num] <- bqueue[bq_num] + 1 #order of that British queue,且最短队列车辆+1
+          for (j in 1:nfi) {
+            bprocess[bq_num[j],ordb[j]] <- runif(1, tmb, tmb + trb) #process time
+          }
+          bdeparture[(bqueue[bq_num]==1)] <- bprocess[(bqueue[bq_num]==1),1] + bdeparture[(bqueue[bq_num]==1)]  ##更新处理需要时间
+        } else {
+          ##车辆进入英国队列
+          bcount <- bcount + nfi
+          bq_num <- order(bqueue)[1:nfi] #which British queue 
+          ordb <- bqueue[bq_num] <- bqueue[bq_num] + 1 #order of that British queue,且最短队列车辆+1
+          for (j in 1:nfi) {
+            bprocess[bq_num[j],ordb[j]] <- runif(1, tmb, tmb + trb) #process time
+          }
+          bdeparture[(bqueue[bq_num]==1)] <- bprocess[(bqueue[bq_num]==1),1] + bdeparture[(bqueue[bq_num]==1)]   ##更新处理需要时间
+          
+          ##车辆离开英国队列
+          bcount <- bcount - length(bdeparture[bdeparture <= t])
+          bqueue[bdeparture <= t] <- bqueue[bdeparture <= t] - 1 
+          bprocess[(bdeparture <= t),-maxb] <- bprocess[(bdeparture <= t),-1]
+          bprocess[(bdeparture <= t),maxb] <- 0
+          bdeparture[bdeparture <= t] <- bprocess[bdeparture <= t,1] + bdeparture[bdeparture <= t] ##更新处理需要时间
+        }
+      }
+    }
+    
+    Nf[t] <- sum(fqueue)/mf
+    Nb[t] <- sum(bqueue)/mb
+    Nf1[t] <- fcount/mf
+    Nb1[t] <- bcount/mb
+    Eq[t] <- Nf[t]*mean(tmf,tmf+trf)  + Nb[t]*mean(tmb,tmb+trb) 
+    b[t]<-(bqueue[which.max(bqueue)]<=20)
+  }
+  
+  fb_fin <- (fcount==0&bcount==0)
+  return(list(nf = Nf, nb = Nb,Eq=Eq,Time=c(1:t),fb_fin=fb_fin,bprocess=bprocess,fprocess=fprocess,b=b,bcount=bcount,fcount=fcount,fdeparture=fdeparture,bdeparture=bdeparture))
+}
+
+sim <- qsim(mf = 5, mb = 5, a.rate = 0.1, trb = 40, trf = 40, tmb = 30, tmf = 30, maxb = 20) #simulation with default parameters
+
+
+### 2. 使用 qsim 函数生成一个 4 面板 2 行 2 列的图
+sim1 <- qsim(mf = 5, mb = 5, a.rate = 0.1, trb = 40, trf = 40, tmb = 30, tmf = 30, maxb = 20) #simulation with default parameters
+sim2 <- qsim(mf = 5, mb = 5, a.rate = 0.1, trb = 40, trf = 40, tmb = 40, tmf = 30, maxb = 20) #simulation with default parameters
+#par(lwd=1.5,cex=1.5,font.lab=2)
+layout(matrix(c(1,2,3,4),2,2,byrow=TRUE),widths = )
+plot(y=sim1$nf,x=sim1$Time,ylim=c(0,max(c(sim1$nf+sim1$nb)+5)),type="l",col='red',xlab = "Time",lty=1,ylab = "Queue Lengths")
+lines(y=sim1$nb,x=sim1$Time,type="l",col='blue',lty=2)
+legend("topleft",title="Queue Type", c("French","British"),lty=c(1,2),col=c("red","blue"),cex = 0.20,lwd=2)
+
+plot(y=sim1$Eq,x=sim1$Time,ylim=c(0,max(sim1$Eq+100)),type="l",col='black',xlab = "Time",lty=1,ylab = "The Expected Queuing Time (s)")
+
+plot(y=sim2$nf,x=sim2$Time,ylim=c(0,max(c(sim2$nf+sim2$nb)+5)),type="l",col='red',xlab = "Time",lty=1,ylab = "Queue Lengths")
+lines(y=sim2$nb,x=sim2$Time,type="l",col='blue',lty=2)
+legend("topleft",title="Queue Type", c("French","British"),lty=c(1,2),col=c("red","blue"),cex = 0.20)
+
+plot(y=sim2$Eq,x=sim2$Time,ylim=c(0,max(sim2$Eq+100)),type="l",col='black',xlab = "Time",lty=1,ylab = "The Expected Queuing Time (s)")
+
+
+### 3. 通过运行100次你的qsim函数估计至少一辆汽车错过渡轮出发的概率（即在模拟结束时仍在队列中）
+sim_result <- NULL
+set.seed(10)
+for (simi in 1:100) {
+  simui <- qsim(mf = 5, mb = 5, a.rate = 0.10, trb = 40, trf = 40, tmb = 30, tmf = 30, maxb = 20) #simulation with default parameters
+  sim_result <- c(sim_result,simui$fb_fin)
+}
+Fai0 <- ifelse(sim_result,0,1)
+p_value <- mean(Fai0)
+p_value
+
+length(Fai0[Fai0==1])
