@@ -1,0 +1,198 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+
+```{r}
+netup <- function(d) {
+  network <- list()#创建了一个空的列表network，用于存储神经网络的参数。
+  #创建了一个具有length(d)个元素的列表，并赋予其赋值network$h。该列表将用于隐藏存储神经网络的层节点值。
+  network$h <- vector("list", length(d))
+  #创建了一个具有length(d)-1单个元素的列表，并赋予其赋值network$W。该列表将用于存储神经网络的权重
+  network$W <- vector("list", length(d)-1)
+  network$b <- vector("list", length(d)-1)
+  
+  # 初始化节点
+  for (l in 1:(length(d)-1)) {
+    #将一个大小为d[l]×1的全零矩阵分配给network$h第l一个元素。这个矩阵用于存储第l一个层的隐藏节点值。
+    network$h[[l]] <- matrix(0, nrow = d[l], ncol = 1)
+    #生成一个d[l+1]×d[l]大小的随机矩阵，并赋予其赋权的network$W第l一个元素。该矩阵表示连接第l一个层和l+1隐藏第一个层之间的权重。
+    network$W[[l]] <- matrix(runif(d[l]*d[l+1], 0, 0.2), nrow = d[l+1], ncol = d[l])
+    network$b[[l]] <- matrix(runif(d[l]*d[l+1], 0, 0.2), nrow = d[l+1], ncol = 1)
+  }
+  #将一个大小为d[4]×1的全零矩阵赋值给network$h最后一个元素。这个矩阵用于存储输出层的节点值。
+  network$h[[length(d)]] <- matrix(0, nrow = d[4], ncol = 1) 
+  
+  return(network)
+}
+  
+```
+
+解释：
+d是一个向量，给出了网络每一层的节点数。d<-[4,8,7,3]
+h是一个包含是每个层的节点值的列表。h[[l]]应该是长度为d[l]的向量，它将包含层l的每个节点值，这些“节点值”通常指的是激活值，即在网络的前向传播过程中，每个神经元计算出的值
+对network列表的“h对象”（h是节点值列表）的最后一个位置进行初始化，创建一个零矩阵其行数由向量d的第四个元素（也就是输出层的节点数）决定，列数为 1。用于储存计算后的输出层的值。
+
+
+
+要求：
+函数的参数nn是由news返回的网络列表，inp是第一层的输入值的向量。forward应该计算inp隐含的剩余节点值，并返回更新的网络列表（作为唯一的返回对象）。
+```{r}
+#2: Define the forward function
+forward <- function(nn, inp) {
+  nn$h[[1]] <- as.matrix(inp)  # 将输入数据转换为矩阵，并赋值给网络的第一个隐藏层节点值
+  
+  for (l in 1:(length(nn$h)-1)) {
+    nn$h[[l+1]] <- pmax(0, nn$W[[l]] %*% nn$h[[l]] + nn$b[[l]])  # 计算下一层节点值
+    nn$h[[l+1]] <- as.matrix(nn$h[[l+1]])  # 将下一层节点值转换为矩阵
+  }
+  
+  return(nn)  # 返回更新后的神经网络
+}
+  
+```
+
+
+要求：
+写一个函数backward（nn，k）来计算网络nn的输出类k对应的损失的导数（从forward返回）。应该计算关于节点、权重和偏移的导数，并将其添加到网络列表中，作为列表dh、dW和db。更新后的列表应该是返回对象。
+```{r}
+
+#3: Define the backward function
+backward <- function(nn, k) {
+  n_layers <- length(nn$h)  # 神经网络的层数
+  # 初始化导数
+  dh <- vector("list", n_layers)  # 每一层的输出导数
+  dW <- vector("list", n_layers-1)  # 权重的导数
+  db <- vector("list", n_layers-1)  # 偏置的导数
+  dd <- vector("list", n_layers)  # 临时矩阵d
+  dd[[n_layers]] <- matrix(0, nrow = length(nn$h[[n_layers]]), ncol = 1)  # 临时矩阵d初始化为零矩阵
+  dh[[n_layers]] <- matrix(0, nrow = length(nn$h[[n_layers]]), ncol = 1)  # 输出层的输出导数初始化为零矩阵
+  
+  # 计算损失的导数
+  # 表达式 (n_layers):2 实际上创建了一个从 n_layers 到 2 的序列。这个序列是递减的
+  for (l in n_layers:2) {
+    dd[[l-1]] <- matrix(0, nrow = length(nn$h[[l-1]]), ncol = 1)  # 初始化临时矩阵d为零矩阵
+    dh[[l-1]] <- matrix(0, nrow = length(nn$h[[l-1]]), ncol = 1)  # 初始化上一层的输出导数为零矩阵
+    dW[[l-1]] <- matrix(0, nrow = nrow(nn$W[[l-1]]), ncol = ncol(nn$W[[l-1]]))  # 初始化权重导数为零矩阵
+    db[[l-1]] <- matrix(0, nrow = length(nn$h[[l-1]]), ncol = 1)  # 初始化偏置导数为零矩阵
+  }
+  
+  # 反向传播
+  # 根据公式计算输出类别 k 的损失导数
+  for (j in 1:length(dh[[n_layers]])) {
+    if (j == k) {
+      dh[[n_layers]][j] = exp(nn$h[[n_layers]][j]) / sum(exp(nn$h[[n_layers]])) - 1
+      dd[[n_layers]][j] = dh[[n_layers]][j]
+    } else {
+      dh[[n_layers]][j] = exp(nn$h[[n_layers]][j]) / sum(exp(nn$h[[n_layers]]))
+      dd[[n_layers]][j] = dh[[n_layers]][j]
+    }
+  }
+  
+  # 计算其他层的损失导数
+  for (l in (n_layers):2) {
+    dd[[l]] = ifelse(nn$h[[l]] <= 0, 0, dh[[l]])  # 根据激活函数的类型，计算上一层的输入导数
+    dh[[l-1]] <- t(nn$W[[l-1]]) %*% dd[[l]]  # 计算上一层的输出导数
+  }
+  
+  # 计算权重和偏置的导数
+  for (l in (n_layers):2) {
+    dW[[l-1]] <- dd[[l]] %*% t(nn$h[[l-1]])  # 计算权重的导数/梯度
+    db[[l-1]] <- dd[[l]]  # 计算偏置的导数/梯度
+  }
+  
+  nn$dh <- dh  # 将输出导数保存在神经网络对象中
+  nn$dW <- dW  # 将权重导数保存在神经网络对象中
+  nn$db <- db  # 将偏置导数保存在神经网络对象中
+  
+  return(nn)  # 返回更新后的神经网络对象
+}
+```
+在神经网络的反向传播算法中，层的遍历通常是从输出层开始，逐层向输入层反向进行。这是因为损失函数的梯度（即损失导数）是依赖于网络的输出的，而网络的输出又是由最后一层（输出层）产生的。因此，反向传播需要从输出层开始，逐步向前层传递，直至到达输入层。在这个过程中，每一层的梯度都是基于其后一层的梯度计算得到的。
+
+# ifelse(condition, a, b)：是一种条件语句。如果 condition 为真，则返回 a，否则返回 b。
+    # 对于第 l 层，根据 ReLU 激活函数的性质调整传播回去的梯度。如果该层的激活输入小于等于 0，ReLU 函数的导数为 0,则梯度被置为 0；如果大于 0，则梯度保持不变。如果 ReLU 的输入大于 0，其导数为 1，因此传播回去的梯度就是 dh[[l]] 本身。
+
+# dW[[l-1]] <- dd[[l]] %*% t(nn$h[[l-1]])：
+这行代码计算权重的梯度。dd[[l]] 应该是第 l 层的误差梯度，%*% 是矩阵乘法运算符，t(nn$h[[l-1]]) 计算第 l-1 层激活值的转置。这里的 dW[[l-1]] 将保存与第 l-1 层相关的权重的梯度。
+
+# db[[l-1]] <- dd[[l]]：
+这行代码计算偏置的梯度。由于偏置的梯度是误差梯度的和（对于每个输出神经元），这里假设 dd[[l]] 已经对应地进行了求和。如果 dd[[l]] 是一个向量，这将正确地计算每个神经元偏置的梯度。
+
+
+
+要求：写一个函数train（nn，inp，k，eta=.01，mb=10，nstep=10000）来训练网络nn，给定输入数据在矩阵inp的行和向量k中相应的标签（1，2，3.）。eta是步长η，mb是随机采样以计算梯度的数据数量。nstep是要采取的优化步骤的数量。
+```{r}
+# 4: Define the train function
+train <- function(nn, inp, k, eta = 0.01, mb = 10, nstep = 10000) {
+  
+  n_samples <- nrow(inp)  # 训练样本的数量
+  for (step in 1:nstep) {
+    # 随机抽取一个小批量样本
+    indices <- sample(n_samples, mb)  # 生成随机索引
+    inp_mb <- inp[indices, ]  # 从输入数据中抽取对应索引的小批量输入
+    k_mb <- k[indices]  # 从标签数据中抽取对应索引的小批量标签
+    
+    for (i in 1:length(k_mb)) {
+      # 前向传播
+      nn <- forward(nn, inp_mb[i,])  # 将小批量输入传递给神经网络进行前向传播
+      
+      # 反向传播
+      nn <- backward(nn, k_mb[i])  # 计算损失函数的梯度
+      
+      # 更新参数
+      # 上述78-81行梯度计算乘以一个学习率eta，并且在计算梯度之后加上随机抽出的批量大小mb的归一化
+      for (l in 1:(length(nn$h)-1)) {
+        nn$W[[l]] <- nn$W[[l]] - eta * nn$dW[[l]] / mb  # 更新权重参数
+        nn$b[[l]] <- nn$b[[l]] - eta * nn$db[[l]] / mb  # 更新偏置参数
+      }
+    }
+  }
+  
+  return(nn)  # 返回更新后的神经网络对象
+}
+
+```
+
+
+将循环更改成矩阵计算
+1）
+```{r}
+  # 反向传播
+  # 根据公式计算输出类别 k 的损失导数
+  for (j in 1:length(dh[[n_layers]])) {
+    if (j == k) {
+      dh[[n_layers]][j] = exp(nn$h[[n_layers]][j]) / sum(exp(nn$h[[n_layers]])) - 1
+      dd[[n_layers]][j] = dh[[n_layers]][j]
+    } else {
+      dh[[n_layers]][j] = exp(nn$h[[n_layers]][j]) / sum(exp(nn$h[[n_layers]]))
+      dd[[n_layers]][j] = dh[[n_layers]][j]
+    }
+  }
+```
+```{r}
+# Assuming nn$h[[n_layers]] contains the logits (the inputs to the softmax function)
+# and that 'k' is the index of the correct class.
+
+# Compute the softmax for all outputs
+softmax_output <- exp(nn$h[[n_layers]]) / sum(exp(nn$h[[n_layers]]))
+
+# Create the gradient for all outputs
+dh[[n_layers]] <- softmax_output
+
+# Subtract 1 from the gradient of the correct class
+dh[[n_layers]][k] <- dh[[n_layers]][k] - 1
+
+# The gradients are now stored in dh[[n_layers]]
+dd[[n_layers]] <- dh[[n_layers]]
+```
+2)
+ 
+      # 更新权重
+      nn$W <- mapply(function(w, dw) w - eta * dw / mb, nn$W, nn$dW, SIMPLIFY = FALSE)
+      
+      # 更新偏置
+      nn$b <- mapply(function(b, db) b - eta * db / mb, nn$b, nn$db, SIMPLIFY = FALSE)
+      
+      
