@@ -1,0 +1,33 @@
+# Backward propagation
+backward <- function(nn, k) {
+  n_layers <- length(nn$h)  # 获取神经网络的层数
+  dh <- vector("list", n_layers)  # 初始化存储梯度的激活值列表
+  dW <- vector("list", n_layers - 1)  # 初始化存储权重梯度的列表
+  db <- vector("list", n_layers - 1)  # 初始化存储偏置梯度的列表
+  
+  # 计算输出层的 softmax 激活值
+  softmax <- exp(nn$h[[n_layers]]) / sum(exp(nn$h[[n_layers]]))
+  # 初始化 delta 用于计算误差
+  delta <- softmax
+  delta[k] <- delta[k] - 1 
+  
+  # 遍历网络的每一层（从后往前）
+  for (l in seq(n_layers - 1, 1, by = -1)) {
+    dh[[l + 1]] <- delta  # 存储当前层的梯度
+    dW[[l]] <- delta %*% t(nn$h[[l]])  # 计算权重梯度
+    db[[l]] <- delta  # 计算偏置梯度
+    
+    # 如果不是第一层，计算前一层的 delta
+    if (l > 1) {
+      delta <- (t(nn$W[[l]]) %*% delta) * (nn$h[[l]] > 0)  # 应用 ReLU 导数
+    }
+  }
+  
+  # 将计算出的梯度附加到网络结构上
+  nn$dh <- dh
+  nn$dW <- dW
+  nn$db <- db
+  
+  # 返回包含梯度信息的网络结构
+  return(nn)
+}
