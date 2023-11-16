@@ -2,7 +2,7 @@
 # GitHub URL: https://github.com/XinyiLuo-917/ExtendStatsGroup/tree/main/Proj4
 # TeamWork Contribution:
 # Baosong Shi:Responsible for code-writing and debugging(40%);
-# Xinyi Luo:Optimized the code's structure,debugged and wrote part of comments(30%);
+# Xinyi Luo:Optimized code structure,debugged and wrote part of comments(30%);
 # Ran Huo:Improved detailed aspects of the code and made comments clearer(30%).
 
 # Description:
@@ -12,7 +12,8 @@
 
 # netup: Initialize the whole network.
 # forward: Calculate the node values and update the network using given input.
-# backward: Calculate each layer's loss gradient and update the network for backpropagation.
+# backward: Calculate each layer's loss gradient related to parameters 
+# and update the network for backpropagation.
 # train: Return the network that trained by stochastic gradient descent method.
 # Application: Classify the iris dataset by using a 4-8-7-3 structure network.
 
@@ -35,8 +36,8 @@ netup <- function(d) {
   for (l in 1:(length(d) - 1)) {
     # Initialize node values, weight matrices and offset vectors for each layer.
     network$h[[l]] <- rep(0, d[l])
-    network$W[[l]] <- matrix(runif(d[l + 1] * d[l], 0, 0.2), nrow = d[l + 1], ncol = d[l])
-    network$b[[l]] <- runif(d[l + 1], 0, 0.2)
+    network$W[[l]] <- matrix(runif(d[l+1]*d[l], 0, 0.2), nrow=d[l+1], ncol=d[l])
+    network$b[[l]] <- runif(d[l+1], 0, 0.2)
   }
   
   # Initialize node values for the output layer.
@@ -65,7 +66,7 @@ forward <- function(nn, inp) {
 
 # backward(nn,k)
 # nn: the updated network list returned from function forward(nn,inp)
-# k: target output class k(determine the partial derivatives of the loss function)
+# k: target output class k(determine the partial derivatives of loss function)
 backward <- function(nn, k) {
   # Get the number of layers of the neural network.
   n_layers <- length(nn$h)
@@ -121,8 +122,8 @@ train <- function(nn, inp, k, eta = 0.01, mb = 10, nstep = 10000) {
       # Compute the gradient of the loss function.
       nn <- backward(nn, k_mb[i])
       # Update weights and offsets.
-      nn$W <- mapply(function(w, dw) w - eta * dw / mb, nn$W, nn$dW, SIMPLIFY = FALSE)
-      nn$b <- mapply(function(b, db) b - eta * db / mb, nn$b, nn$db, SIMPLIFY = FALSE)
+      nn$W <- mapply(function(w, dw) w-eta * dw/mb, nn$W, nn$dW, SIMPLIFY=FALSE)
+      nn$b <- mapply(function(b, db) b-eta * db/mb, nn$b, nn$db, SIMPLIFY=FALSE)
     }
   }
   
@@ -152,7 +153,8 @@ test_labels <- iris[test_idx, 5]
 # Initialize network with number of nodes per layer 4, 8, 7, 3.
 nn <- netup(c(4, 8, 7, 3))
 # Train a network with training data.
-nn <- train(nn, as.matrix(train_data), train_labels, eta = 0.01, mb = 10, nstep = 10000)
+nn <- train(nn, as.matrix(train_data), train_labels, 
+            eta = 0.01, mb = 10, nstep = 10000)
 
 # Function to sort the input data.
 classify <- function(nn, x) {
@@ -161,15 +163,15 @@ classify <- function(nn, x) {
   return(which.max(nn$h[[length(nn$h)]]))
 }
 
-# Function evaluates the misclassification rate.
+# Function evaluates the mis-classification rate.
 evaluate <- function(nn, test_data, test_labels) {
   predictions <- apply(test_data, 1, function(x) classify(nn, x))
   misclass_rate <- mean(predictions != test_labels)
   return(misclass_rate)
 }
 
-# Classify test data and evaluate misclassification rates.
+# Classify test data and evaluate mis-classification rates.
 misclass_rate <- evaluate(nn, as.matrix(test_data), test_labels)
 
-# Print misclassification rate.
+# Print mis-classification rate.
 print(misclass_rate)
